@@ -15,6 +15,7 @@ from utils.datasets import LoadStreams, LoadImages
 from utils.general import xyxy2xywh, xywh2xyxy, \
     strip_optimizer, set_logging, increment_path, scale_coords
 from utils.plots import plot_one_box
+from utils.plots import plot_counts_text
 from utils.torch_utils import select_device, time_synchronized
 from utils.roboflow import predict_image
 
@@ -87,11 +88,13 @@ def update_tracks(tracker, frame_count, save_txt, txt_path, save_img, view_img, 
 
         if save_img or view_img:  # Add bbox to image
             label = f'{class_name} #{track.track_id}'
-            plot_one_box(xyxy, im0, label=label,
+            plot_one_box(xyxy, im0, label=label, fly_number = fly_counts,
                          color=get_color_for(label), line_thickness=opt.thickness)
                          
     with open(txt_path + '.txt', 'a') as f:
-                f.write("fly_counts:{}\n".format(fly_counts))     
+                f.write("fly_counts:{}\n".format(fly_counts))
+
+    plot_counts_text(im0, fly_numbers = fly_counts , line_thickness=opt.thickness)                 
 
 def get_color_for(class_num):
     colors = [
