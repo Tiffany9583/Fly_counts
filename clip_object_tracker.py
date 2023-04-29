@@ -16,6 +16,8 @@ from utils.general import xyxy2xywh, xywh2xyxy, \
     strip_optimizer, set_logging, increment_path, scale_coords
 from utils.plots import plot_one_box
 from utils.plots import plot_counts_text
+from utils.plots import plot_one_box
+from utils.plots import plot_path_line
 from utils.torch_utils import select_device, time_synchronized
 from utils.roboflow import predict_image
 
@@ -28,21 +30,34 @@ from tools import generate_clip_detections as gdet
 from utils.yolov5 import Yolov5Engine
 from utils.yolov4 import Yolov4Engine
 from utils.yolov7 import Yolov7Engine
+from math import dist
 
 classes = []
-
 names = []
+fly_counts = []
+
+fly_coordi= {} # {track.track_id:[(Center_x,Center_y),(Center_x2,Center_y2)...]}
+
 
 def flyin( fly_center , diet__center , diet_radius, fly_radius ):
     ori = (diet_radius+fly_radius)**2
     new = (fly_center[0]-diet__center[0])**2 + (fly_center[1]-diet__center[1])**2
     if ori>=new:
         return True
-
-def update_tracks(tracker, frame_count, save_txt, txt_path, save_img, view_img, im0, gn):
-    diet__center = [] #[(Center_x,Center_y,radius)]
-    fly_counts = []
     
+def fly_not_in_diet(fly_center, old_coordi):
+    d = []
+    for coordi in old_coordi.values():
+        if dist(fly_center,coordi[-1]) <= 5:
+            d.append(1)
+        else:
+            d.append(0)
+    if 1 not in d:
+        return True
+    
+def update_tracks(tracker, frame_count, save_txt, txt_path, save_img, view_img, im0, gn, fly_counts):
+    diet__center = [] #[(Center_x,Center_y,radius)]
+
     if len(tracker.tracks):
         print("[Tracks]", len(tracker.tracks))
     
@@ -63,14 +78,33 @@ def update_tracks(tracker, frame_count, save_txt, txt_path, save_img, view_img, 
         if str(class_name) == "Diet":
           radius = (bbox[2]-bbox[0])*0.5
           diet__center.append((Center_x,Center_y,radius))
-          fly_counts.append(0)
+          fly_counts.append(0) # initialize fly_counts 
           # print(diet__center)
 
         if str(class_name) == "Fly":
+          #diet__center = [(coordi_x,coordi_y,radius)]
           for i in range(len(diet__center)):
-            diet = diet__center[i]
-            if flyin( (Center_x,Center_y) , (diet[0],diet[1]) ,diet[2] ,fly_radius ) == True:
-              fly_counts[i] += 1
+            diet_coordi = diet__center[i]
+
+            # if flyin
+            if flyin( (Center_x,Center_y) , (diet_coordi[0],diet_coordi[1]) ,diet_coordi[2] ,fly_radius ) == True:
+              # fly_coordi= {} # {track.track_id:[(Center_x,Center_y),(Center_x2,Center_y2)...]}
+              if len(fly_coordi) > 0:
+                if fly_not_in_diet((Center_x,Center_y), fly_coordi) == True :
+                  fly_counts[i] += 1
+                else:
+                  pass 
+              else:
+                fly_counts[i] += 1
+              
+              # put fly coordinate into fly_coordi
+              if fly_coordi.get(track.track_id) == None:
+                fly_coordi[track.track_id] = []
+                fly_coordi[track.track_id] += [(Center_x,Center_y)]
+              else:
+                fly_coordi[track.track_id] += [(Center_x,Center_y)]    
+              
+              
               
 
 
@@ -90,11 +124,17 @@ def update_tracks(tracker, frame_count, save_txt, txt_path, save_img, view_img, 
             label = f'{class_name} #{track.track_id}'
             plot_one_box(xyxy, im0, label=label, fly_number = fly_counts,
                          color=get_color_for(label), line_thickness=opt.thickness)
+            
+            if fly_coordi.get(track.track_id):
+              fly_coordi_list = fly_coordi[track.track_id]
+              plot_path_line(fly_coordi_list, im0, color=get_color_for(label), line_thickness=opt.thickness)
                          
     with open(txt_path + '.txt', 'a') as f:
                 f.write("fly_counts:{}\n".format(fly_counts))
 
-    plot_counts_text(im0, fly_numbers = fly_counts , line_thickness=opt.thickness)                 
+    plot_counts_text(im0, fly_numbers = fly_counts , line_thickness=opt.thickness)
+      
+    return fly_counts , fly_coordi
 
 def get_color_for(class_num):
     colors = [
@@ -310,7 +350,7 @@ def detect(save_img=False):
 
                 # update tracks
                 update_tracks(tracker, frame_count, save_txt,
-                              txt_path, save_img, view_img, im0, gn)
+                              txt_path, save_img, view_img, im0, gn, fly_counts)
 
             # Print time (inference + NMS)
             print(f'Done. ({t2 - t1:.3f}s)')
