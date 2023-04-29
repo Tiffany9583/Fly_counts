@@ -78,13 +78,24 @@ def plot_counts_text(img, fly_numbers= None, line_thickness=None):
     for i in range(len(fly_numbers)):
          if i == len(fly_numbers)-1 :
              f1 = "Diet" + str(i+1) + ": " + str(fly_numbers[i]) 
-
-         f1 = "Diet" + str(i+1) + ": " + str(fly_numbers[i]) + "; "
+         else:
+             f1 = "Diet" + str(i+1) + ": " + str(fly_numbers[i]) + "; "
          f += f1
    
     cv2.putText(img, f, org , 0, tl / 3, color , thickness=tf, lineType=cv2.LINE_AA)
 
-
+def plot_path_line(fly_coordi_list, img, color=None, line_thickness=None):
+    # Plots one bounding box on image img
+    tl = line_thickness or round(0.002 * (img.shape[0] + img.shape[1]) / 2) + 1  # line/font thickness
+    color = color or [random.randint(0, 255) for _ in range(3)]
+    
+    if len(fly_coordi_list)> 2:
+          for p in range(len(fly_coordi_list)-1):
+            p1 = (int(fly_coordi_list[p][0]),int(fly_coordi_list[p][1]))
+            p2 = (int(fly_coordi_list[p+1][0]),int(fly_coordi_list[p+1][1]))
+            cv2.line(img, p1 , p2, color, 1)
+            # cv2.line(image, start_point, end_point, color, thickness)
+          
 
 def plot_wh_methods():  # from utils.plots import *; plot_wh_methods()
     # Compares the two methods for width-height anchor multiplication
