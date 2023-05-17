@@ -14,10 +14,7 @@ from models.experimental import attempt_load
 from utils.datasets import LoadStreams, LoadImages
 from utils.general import xyxy2xywh, xywh2xyxy, \
     strip_optimizer, set_logging, increment_path, scale_coords
-from utils.plots import plot_one_box
-from utils.plots import plot_counts_text
-from utils.plots import plot_one_box
-from utils.plots import plot_path_line
+from utils.plots import plot_one_box, plot_fly_coordi_matrix, plot_counts_text, plot_path_line
 from utils.torch_utils import select_device, time_synchronized
 from utils.roboflow import predict_image
 
@@ -34,7 +31,7 @@ from math import dist
 
 classes = []
 names = []
-fly_counts = []
+
 
 # {track.track_id:[(Center_x,Center_y),(Center_x2,Center_y2)...]}
 fly_coordi = {}
@@ -61,7 +58,7 @@ def fly_not_in_diet(fly_center, old_coordi):
         return True
 
 
-def update_tracks(tracker, frame_count, save_txt, txt_path, save_img, view_img, im0, gn, fly_counts):
+def update_tracks(tracker, frame_count, save_txt, txt_path, save_img, view_img, im0, gn, fly_counts, fly_coordi_matrix):
     diet__center = []  # [(Center_x,Center_y,radius)]
 
     if len(tracker.tracks):
@@ -88,6 +85,17 @@ def update_tracks(tracker, frame_count, save_txt, txt_path, save_img, view_img, 
         if str(class_name) == "Fly":
             # diet__center = [(coordi_x,coordi_y,radius)]
 
+            # ======== calculate fly_coordi_matrix ========
+            im0_shape = (im0.shape[1], im0.shape[0])
+
+            if fly_coordi_matrix.shape != im0_shape:
+                # Initialize fly_coordi_matrix
+                fly_coordi_matrix = np.zeros(im0_shape)
+            else:
+                # add fly coordi into fly_coordi_matrix
+                fly_coordi_matrix[int(Center_x)-1][int(Center_y)-1] += 1
+
+            # ======== calculate fly_counts ========
             if len(fly_counts) < len(diet__center):
                 for i in range(len(diet__center)-len(fly_counts)):
                     fly_counts.append(0)  # initialize fly_counts
@@ -112,6 +120,7 @@ def update_tracks(tracker, frame_count, save_txt, txt_path, save_img, view_img, 
                         # print("flyin and  add")
                         fly_counts[i] += 1
 
+             # ======== update fly coordinate for print fly path line========
              # put fly coordinate into fly_coordi
             if fly_coordi.get(track.track_id) == None:
                 fly_coordi[track.track_id] = []
@@ -149,7 +158,7 @@ def update_tracks(tracker, frame_count, save_txt, txt_path, save_img, view_img, 
 
     fly_coordi.update(fly_coordi)
 
-    return fly_counts
+    return fly_counts, fly_coordi_matrix
 
 
 def get_color_for(class_num):
@@ -212,6 +221,11 @@ def detect(save_img=False):
     # initialize tracker
     tracker = Tracker(metric)
 
+    # initialize fly_counts and fly_coordi_matrix
+    fly_counts = []
+    global fly_coordi_matrix
+    fly_coordi_matrix = np.array([])
+
     source, weights, view_img, save_txt, imgsz = opt.source, opt.weights, opt.view_img, opt.save_txt, opt.img_size
     webcam = source.isnumeric() or source.endswith('.txt') or source.lower().startswith(
         ('rtsp://', 'rtmp://', 'http://'))
@@ -245,8 +259,8 @@ def detect(save_img=False):
     elif opt.detection_engine == "yolov7":
         _ = yolov7_engine.infer(
             img.half() if half else img) if device.type != 'cpu' else None  # run once
-    for path, img, im0s, vid_cap in dataset:
 
+    for path, img, im0s, vid_cap in dataset:
         img = torch.from_numpy(img).to(device)
         img = img.half() if half else img.float()  # uint8 to fp16/32
         img /= 255.0  # 0 - 255 to 0.0 - 1.0
@@ -256,7 +270,6 @@ def detect(save_img=False):
         # Roboflow Inference
         t1 = time_synchronized()
         p, s, im0, frame = path, '', im0s, getattr(dataset, 'frame', 0)
-
         # choose between prediction engines (roboflow, yolov5, and yolov7)
         if opt.detection_engine == "roboflow":
             pred, classes = predict_image(
@@ -365,8 +378,9 @@ def detect(save_img=False):
                 tracker.update(detections)
 
                 # update tracks
-                update_tracks(tracker, frame_count, save_txt,
-                              txt_path, save_img, view_img, im0, gn, fly_counts)
+                fly_counts, fly_coordi_matrix_new = update_tracks(tracker, frame_count, save_txt,
+                                                                  txt_path, save_img, view_img, im0, gn, fly_counts, fly_coordi_matrix)
+                fly_coordi_matrix = fly_coordi_matrix_new
 
             # Print time (inference + NMS)
             print(f'Done. ({t2 - t1:.3f}s)')
@@ -398,8 +412,17 @@ def detect(save_img=False):
             frame_count = frame_count+1
 
     if save_txt or save_img:
+
+        with open(save_dir / 'coordi_matrix.txt', 'a') as f:
+            # for line in fly_coordi_matrix:
+            np.savetxt(f, fly_coordi_matrix, fmt='%.2f')
+
         s = f"\n{len(list(save_dir.glob('labels/*.txt')))} labels saved to {save_dir / 'labels'}" if save_txt else ''
         print(f"Results saved to {save_dir}{s}")
+
+        plot_fly_coordi_matrix(
+            fly_coordi_matrix, source, w, h, save_dir=save_dir)
+        print(f"Coordinate matrix figure and txt file saved to {save_dir}")
 
     print(f'Done. ({time.time() - t0:.3f}s)')
 

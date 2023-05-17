@@ -105,6 +105,35 @@ def plot_path_line(fly_coordi_list, img, color=None, line_thickness=None):
             # cv2.line(image, start_point, end_point, color, thickness)
 
 
+def plot_fly_coordi_matrix(coordi_matrix, source, w, h, save_dir=''):
+    # fig = sns.heatmap(coordi_matrix, annot=True, cmap='Blues')
+    # fig.savefig(Path(save_dir) / 'coordi_matrix.png', dpi=200)
+    # Read image
+    cap = cv2.VideoCapture(source)  # read video
+    while cap.isOpened():
+        success, frame = cap.read()
+        if not success:
+            break
+        img = frame
+        cap.release()
+
+    img = cv2.resize(img, (w, h))
+    heatmap = coordi_matrix.T
+    heatmap = cv2.resize(heatmap, (w, h))
+    heatmap = np.uint8(255 * heatmap)
+    heatmapshow = None
+    heatmapshow = cv2.normalize(heatmap, heatmapshow, alpha=0,
+                                beta=255, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_8U)
+    heatmap = cv2.applyColorMap(heatmapshow, cv2.COLORMAP_JET)
+
+    alpha = heatmap[..., 2] / 255
+    alpha = np.tile(np.expand_dims(alpha, axis=2), [1, 1, 3])
+    output = (img * (1 - alpha) + heatmap[..., :3] * alpha).astype(np.uint8)
+    # Output
+    os.chdir(save_dir)
+    cv2.imwrite('heatmap.png', output)
+
+
 def plot_wh_methods():  # from utils.plots import *; plot_wh_methods()
     # Compares the two methods for width-height anchor multiplication
     # https://github.com/ultralytics/yolov3/issues/168
