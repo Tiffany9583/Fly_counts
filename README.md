@@ -1,4 +1,4 @@
-# Roboflow Object Tracking Example
+# Fly Tracking and Counts tool
 
 Object tracking using Roboflow Inference API and Zero-Shot (CLIP) Deep SORT. Read more in
 [Zero-Shot Object Tracking announcement post](https://blog.roboflow.com/zero-shot-object-tracking/).
