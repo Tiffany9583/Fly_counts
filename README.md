@@ -1,11 +1,9 @@
 # Roboflow Object Tracking Example
 
-Object tracking using Roboflow Inference API and Zero-Shot (CLIP) Deep SORT. Read more in our
+Object tracking using Roboflow Inference API and Zero-Shot (CLIP) Deep SORT. Read more in
 [Zero-Shot Object Tracking announcement post](https://blog.roboflow.com/zero-shot-object-tracking/).
 
 ![Example fish tracking](https://user-images.githubusercontent.com/870796/130703648-8af62801-d66c-41f5-80ae-889301ae9b44.gif)
-
-Example object tracking courtesy of the [Roboflow Universe public Aquarium model and dataset](https://universe.roboflow.com/brad-dwyer/aquarium-combined). You can adapt this to your own dataset on Roboflow or any pre-trained model from [Roboflow Universe](https://universe.roboflow.com).
 
 # Overview
 
@@ -68,6 +66,7 @@ pip install -r requirements.txt
 ```
 
 ### Install requirements (anaconda python 3.8)
+
 ```
 conda install pytorch torchvision torchaudio -c pytorch
 conda install ftfy regex tqdm requests pandas seaborn
@@ -81,25 +80,30 @@ pip install opencv pycocotools tensorflow
 python clip_object_tracker.py --source data/video/fish.mp4 --url https://detect.roboflow.com/playing-cards-ow27d/1 --api_key ROBOFLOW_API_KEY --info
 ```
 
-**NOTE you must provide a valid API key from [Roboflow](docs.roboflow.com)
+\*\*NOTE you must provide a valid API key from [Roboflow](docs.roboflow.com)
 
 ### Run with YOLOv7
+
 ```bash
 
 python clip_object_tracker.py --weights models/yolov7.pt --source data/video/fish.mp4 --detection-engine yolov7 --info
 ```
 
 ### Run with YOLOv5
+
 ```bash
 
 python clip_object_tracker.py --weights models/yolov5s.pt --source data/video/fish.mp4 --detection-engine yolov5 --info
 ```
 
 ### Run with YOLOv4
+
 To use YOLOv4 for object detection you will need pretrained weights (.weights file), a model config for your weights (.cfg), and a class names file (.names). Test weights can be found here https://github.com/AlexeyAB/darknet. [yolov4.weights](https://github.com/AlexeyAB/darknet/releases/download/darknet_yolo_v3_optimal/yolov4.weights) [yolov4.cfg](https://raw.githubusercontent.com/AlexeyAB/darknet/master/cfg/yolov4.cfg)
+
 ```
 python clip_object_tracker.py --weights yolov4.weights --cfg yolov4.cfg --names coco.names --source data/video/cars.mp4 --detection-engine yolov4 --info
 ```
+
 (by default, output will be in runs/detect/exp[num])
 
 <figure class="video_container">
@@ -113,11 +117,12 @@ Help
 ```bash
 python clip_object_tracker.py -h
 ```
+
 ```
 --weights WEIGHTS [WEIGHTS ...]  model.pt path(s)
 --source SOURCE                  source (video/image)
 --img-size IMG_SIZE              inference size (pixels)
---confidence CONFIDENCE          object confidence threshold                      
+--confidence CONFIDENCE          object confidence threshold
 --overlap OVERLAP                IOU threshold for NMS
 --thickness THICKNESS            Thickness of the bounding box strokes
 --device DEVICE                  cuda device, i.e. 0 or 0,1,2,3 or cpu
@@ -139,6 +144,7 @@ python clip_object_tracker.py -h
 --info                           Print debugging info.
 --detection-engine               Which engine you want to use for object detection (yolov7, yolov5, yolov4, roboflow).
 ```
+
 ## Acknowledgements
 
 Huge thanks to:
