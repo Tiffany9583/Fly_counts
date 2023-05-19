@@ -9,6 +9,7 @@ import torch
 import torch.backends.cudnn as cudnn
 from numpy import random
 import numpy as np
+from math import dist
 
 from models.experimental import attempt_load
 from utils.datasets import LoadStreams, LoadImages
@@ -27,8 +28,9 @@ from tools import generate_clip_detections as gdet
 from utils.yolov5 import Yolov5Engine
 from utils.yolov4 import Yolov4Engine
 from utils.yolov7 import Yolov7Engine
-from math import dist
 
+
+from utils.general_fly import get_color_for, fly_not_in_diet, flyin
 classes = []
 names = []
 
@@ -37,28 +39,8 @@ names = []
 fly_coordi = {}
 
 
-def flyin(fly_center, diet__center, diet_radius, fly_radius):
-    ori = diet_radius+fly_radius
-    new = dist(
-        (0, 0), (abs(fly_center[0]-diet__center[0]), abs(fly_center[1]-diet__center[1])))
-    # new = ()**2 + \
-    #     ()**2
-    if ori >= new:
-        return True
-
-
-def fly_not_in_diet(fly_center, old_coordi):
-    d = []
-    for coordi in old_coordi.values():
-        if dist(fly_center, coordi[-1]) <= 1:
-            d.append(1)
-        else:
-            d.append(0)
-    if 1 not in d:
-        return True
-
-
-def update_tracks(tracker, frame_count, save_txt, txt_path, save_img, view_img, im0, gn, fly_counts, fly_coordi_matrix):
+def update_tracks(tracker, frame_count, save_txt, txt_path, save_img, view_img, im0, gn,
+                  fly_counts, fly_coordi_matrix, thickness, show_path, info, cal_matrix):
     diet__center = []  # [(Center_x,Center_y,radius)]
 
     if len(tracker.tracks):
@@ -86,14 +68,15 @@ def update_tracks(tracker, frame_count, save_txt, txt_path, save_img, view_img, 
             # diet__center = [(coordi_x,coordi_y,radius)]
 
             # ======== calculate fly_coordi_matrix ========
-            im0_shape = (im0.shape[1], im0.shape[0])
+            if cal_matrix:
+                im0_shape = (im0.shape[1], im0.shape[0])
 
-            if fly_coordi_matrix.shape != im0_shape:
-                # Initialize fly_coordi_matrix
-                fly_coordi_matrix = np.zeros(im0_shape)
-            else:
-                # add fly coordi into fly_coordi_matrix
-                fly_coordi_matrix[int(Center_x)-1][int(Center_y)-1] += 1
+                if fly_coordi_matrix.shape != im0_shape:
+                    # Initialize fly_coordi_matrix
+                    fly_coordi_matrix = np.zeros(im0_shape)
+                else:
+                    # add fly coordi into fly_coordi_matrix
+                    fly_coordi_matrix[int(Center_x)-1][int(Center_y)-1] += 1
 
             # ======== calculate fly_counts ========
             if len(fly_counts) < len(diet__center):
@@ -129,12 +112,13 @@ def update_tracks(tracker, frame_count, save_txt, txt_path, save_img, view_img, 
                 fly_coordi[track.track_id] += [(Center_x, Center_y)]
 
             label = f'{class_name} #{track.track_id}'
-            if fly_coordi.get(track.track_id):
-                fly_coordi_list = fly_coordi[track.track_id]
-                plot_path_line(fly_coordi_list, im0, color=get_color_for(
-                    label), line_thickness=opt.thickness)
+            if show_path:
+                if fly_coordi.get(track.track_id):
+                    fly_coordi_list = fly_coordi[track.track_id]
+                    plot_path_line(fly_coordi_list, im0, color=get_color_for(
+                        label), line_thickness=thickness)
 
-        if opt.info:
+        if info:
             print("Tracker ID: {}, Class: {}, BBox Coords (xmin, ymin, xmax, ymax): {}".format(
                 str(track.track_id), class_name, (int(bbox[0]), int(bbox[1]), int(bbox[2]), int(bbox[3]))))
 
@@ -149,38 +133,16 @@ def update_tracks(tracker, frame_count, save_txt, txt_path, save_img, view_img, 
         if save_img or view_img:  # Add bbox to image
             label = f'{class_name} #{track.track_id}'
             plot_one_box(xyxy, im0, label=label,
-                         color=get_color_for(label), line_thickness=opt.thickness)
+                         color=get_color_for(label), line_thickness=thickness)
+    if save_txt:
+        with open(txt_path + '.txt', 'a') as f:
+            f.write("fly_counts:{}\n".format(fly_counts))
 
-    with open(txt_path + '.txt', 'a') as f:
-        f.write("fly_counts:{}\n".format(fly_counts))
-
-    plot_counts_text(im0, fly_numbers=fly_counts, line_thickness=opt.thickness)
+    plot_counts_text(im0, fly_numbers=fly_counts, line_thickness=thickness)
 
     fly_coordi.update(fly_coordi)
 
     return fly_counts, fly_coordi_matrix
-
-
-def get_color_for(class_num):
-    colors = [
-        "#4892EA",
-        "#00EEC3",
-        "#FE4EF0",
-        "#F4004E",
-        "#FA7200",
-        "#EEEE17",
-        "#90FF00",
-        "#78C1D2",
-        "#8C29FF"
-    ]
-
-    num = hash(class_num)  # may actually be a number or a string
-    hex = colors[num % len(colors)]
-
-    # adapted from https://stackoverflow.com/questions/29643352/converting-hex-to-rgb-value-in-python
-    rgb = tuple(int(hex.lstrip('#')[i:i+2], 16) for i in (0, 2, 4))
-
-    return rgb
 
 
 def detect(save_img=False):
@@ -226,7 +188,9 @@ def detect(save_img=False):
     global fly_coordi_matrix
     fly_coordi_matrix = np.array([])
 
-    source, weights, view_img, save_txt, imgsz = opt.source, opt.weights, opt.view_img, opt.save_txt, opt.img_size
+    source, weights, view_img, save_txt, imgsz = opt.source, opt.weights, opt.view_img, opt.save_txt, opt.img_size,
+    show_path, cal_matrix, thickness, info = opt.show_path, opt.cal_matrix, opt.thickness, opt.info
+
     webcam = source.isnumeric() or source.endswith('.txt') or source.lower().startswith(
         ('rtsp://', 'rtmp://', 'http://'))
 
@@ -379,7 +343,8 @@ def detect(save_img=False):
 
                 # update tracks
                 fly_counts, fly_coordi_matrix_new = update_tracks(tracker, frame_count, save_txt,
-                                                                  txt_path, save_img, view_img, im0, gn, fly_counts, fly_coordi_matrix)
+                                                                  txt_path, save_img, view_img, im0, gn, fly_counts, fly_coordi_matrix,
+                                                                  thickness, show_path, info, cal_matrix)
                 fly_coordi_matrix = fly_coordi_matrix_new
 
             # Print time (inference + NMS)
@@ -413,16 +378,19 @@ def detect(save_img=False):
 
     if save_txt or save_img:
 
-        with open(save_dir / 'coordi_matrix.txt', 'a') as f:
-            # for line in fly_coordi_matrix:
-            np.savetxt(f, fly_coordi_matrix, fmt='%.2f')
-
         s = f"\n{len(list(save_dir.glob('labels/*.txt')))} labels saved to {save_dir / 'labels'}" if save_txt else ''
         print(f"Results saved to {save_dir}{s}")
 
+    if cal_matrix:
+        with open(save_dir / 'coordi_matrix.txt', 'a') as f:
+            # for line in fly_coordi_matrix:
+            np.savetxt(f, fly_coordi_matrix, fmt='%.2f')
         plot_fly_coordi_matrix(
             fly_coordi_matrix, source, w, h, save_dir=save_dir)
         print(f"Coordinate matrix figure and txt file saved to {save_dir}")
+
+    with open(save_dir / 'fly_counts.txt', 'a') as f:
+        f.write("fly_counts:{}\n".format(fly_counts))
 
     print(f'Done. ({time.time() - t0:.3f}s)')
 
@@ -452,6 +420,12 @@ if __name__ == '__main__':
                         help='display results')
     parser.add_argument('--save-txt', action='store_true',
                         help='save results to *.txt')
+    # function for fly project
+    parser.add_argument('--show-path', action='store_true',
+                        help='show path on video')
+    parser.add_argument('--cal-matrix', action='store_true',
+                        help='Calculate fly position matrix and generate heatmap.')
+
     parser.add_argument('--save-conf', action='store_true',
                         help='save confidences in --save-txt labels')
     parser.add_argument('--classes', nargs='+', type=int,
