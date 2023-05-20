@@ -105,21 +105,20 @@ def plot_path_line(fly_coordi_list, img, color=None, line_thickness=None):
             # cv2.line(image, start_point, end_point, color, thickness)
 
 
-def plot_fly_coordi_matrix(coordi_matrix, source, w, h, save_dir=''):
-    # fig = sns.heatmap(coordi_matrix, annot=True, cmap='Blues')
-    # fig.savefig(Path(save_dir) / 'coordi_matrix.png', dpi=200)
+def plot_fly_coordi_matrix(coordi_matrix, source, save_dir='', first_img=None):
     # Read image
-    cap = cv2.VideoCapture(source)  # read video
-    while cap.isOpened():
-        success, frame = cap.read()
-        if not success:
-            break
-        img = frame
-        cap.release()
+    if first_img == None:
+        cap = cv2.VideoCapture(source)  # read video
+        while cap.isOpened():
+            success, frame = cap.read()
+            if not success:
+                break
+            img = frame
+            cap.release()
 
-    img = cv2.resize(img, (w, h))
+    # img = cv2.resize(img, (w, h))
     heatmap = coordi_matrix.T
-    heatmap = cv2.resize(heatmap, (w, h))
+    # heatmap = cv2.resize(heatmap, (w, h))
     heatmap = np.uint8(255 * heatmap)
     heatmapshow = None
     heatmapshow = cv2.normalize(heatmap, heatmapshow, alpha=0,

@@ -39,7 +39,7 @@ names = []
 fly_coordi = {}
 
 
-def update_tracks(tracker, frame_count, save_txt, txt_path, save_img, view_img, im0, gn,
+def update_tracks(tracker, frame_count, save_txt, txt_path, save_dir,  save_img, view_img, im0, gn,
                   fly_counts, fly_coordi_matrix, thickness, show_path, info, cal_matrix):
     diet__center = []  # [(Center_x,Center_y,radius)]
 
@@ -103,16 +103,17 @@ def update_tracks(tracker, frame_count, save_txt, txt_path, save_img, view_img, 
                         # print("flyin and  add")
                         fly_counts[i] += 1
 
+            if show_path:
              # ======== update fly coordinate for print fly path line========
              # put fly coordinate into fly_coordi
-            if fly_coordi.get(track.track_id) == None:
-                fly_coordi[track.track_id] = []
-                fly_coordi[track.track_id] += [(Center_x, Center_y)]
-            else:
-                fly_coordi[track.track_id] += [(Center_x, Center_y)]
+                if fly_coordi.get(track.track_id) == None:
+                    fly_coordi[track.track_id] = []
+                    fly_coordi[track.track_id] += [(Center_x, Center_y)]
+                else:
+                    fly_coordi[track.track_id] += [(Center_x, Center_y)]
 
-            label = f'{class_name} #{track.track_id}'
-            if show_path:
+                label = f'{class_name} #{track.track_id}'
+
                 if fly_coordi.get(track.track_id):
                     fly_coordi_list = fly_coordi[track.track_id]
                     plot_path_line(fly_coordi_list, im0, color=get_color_for(
@@ -127,16 +128,17 @@ def update_tracks(tracker, frame_count, save_txt, txt_path, save_img, view_img, 
             with open(txt_path + '.txt', 'a') as f:
                 # f.write('frame: {}; track: {}; class: {}; bbox: {};\n'.format(frame_count, track.track_id, class_num,
                 #                                                               *xywh))
-                f.write('frame: {}; track: {}; class: {}; BBox X and Center (xmin, ymin, Center_x, Center_y): {};\n'.format(frame_count, track.track_id, class_num,
-                        (int(bbox[0]), int(bbox[1]), Center_x, Center_y)))
+                f.write('frame: {}; track: {}; class: {}; BBox X (xmin, ymin): {}; Center (x,y): {}\n'.format(frame_count, track.track_id, class_name,
+                        (int(bbox[0]), int(bbox[1])), (Center_x, Center_y)))
 
         if save_img or view_img:  # Add bbox to image
             label = f'{class_name} #{track.track_id}'
             plot_one_box(xyxy, im0, label=label,
                          color=get_color_for(label), line_thickness=thickness)
     if save_txt:
-        with open(txt_path + '.txt', 'a') as f:
-            f.write("fly_counts:{}\n".format(fly_counts))
+        with open(save_dir / 'fly_counts.txt', 'a') as f:
+            f.write("frame: {}; fly_counts:{}\n".format(
+                frame_count, fly_counts))
 
     plot_counts_text(im0, fly_numbers=fly_counts, line_thickness=thickness)
 
@@ -343,7 +345,7 @@ def detect(save_img=False):
 
                 # update tracks
                 fly_counts, fly_coordi_matrix_new = update_tracks(tracker, frame_count, save_txt,
-                                                                  txt_path, save_img, view_img, im0, gn, fly_counts, fly_coordi_matrix,
+                                                                  txt_path, save_dir, save_img, view_img, im0, gn, fly_counts, fly_coordi_matrix,
                                                                   thickness, show_path, info, cal_matrix)
                 fly_coordi_matrix = fly_coordi_matrix_new
 
@@ -390,7 +392,7 @@ def detect(save_img=False):
         print(f"Coordinate matrix figure and txt file saved to {save_dir}")
 
     with open(save_dir / 'fly_counts.txt', 'a') as f:
-        f.write("fly_counts:{}\n".format(fly_counts))
+        f.write("last fly_counts:{}\n".format(fly_counts))
 
     print(f'Done. ({time.time() - t0:.3f}s)')
 
