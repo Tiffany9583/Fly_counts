@@ -105,9 +105,9 @@ def plot_path_line(fly_coordi_list, img, color=None, line_thickness=None):
             # cv2.line(image, start_point, end_point, color, thickness)
 
 
-def plot_fly_coordi_matrix(coordi_matrix, source, save_dir='', first_img=None):
-    # Read image
-    if first_img == None:
+def plot_fly_coordi_matrix(coordi_matrix, source, save_dir='', first_img=''):
+    # Read image if no image input
+    if len(first_img) > 0:
         cap = cv2.VideoCapture(source)  # read video
         while cap.isOpened():
             success, frame = cap.read()

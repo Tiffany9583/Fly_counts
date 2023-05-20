@@ -105,8 +105,8 @@ def start():
     t0 = time_synchronized()
     save_EXCLfile, cal_matrix = opt.save_EXCLfile, opt.cal_matrix
 
-    source_folder = Path(opt.source)
-    source = Path(opt.coordi_folder)
+    source = Path(opt.source)
+    source_folder = Path(opt.coordi_folder)
     (source_folder / 'res' if save_EXCLfile else source_folder).mkdir(parents=True,
                                                                       exist_ok=True)  # make dir
 

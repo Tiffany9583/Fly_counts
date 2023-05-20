@@ -388,7 +388,7 @@ def detect(save_img=False):
             # for line in fly_coordi_matrix:
             np.savetxt(f, fly_coordi_matrix, fmt='%.2f')
         plot_fly_coordi_matrix(
-            fly_coordi_matrix, source, w, h, save_dir=save_dir)
+            fly_coordi_matrix, source, save_dir=save_dir, first_img='')
         print(f"Coordinate matrix figure and txt file saved to {save_dir}")
 
     with open(save_dir / 'fly_counts.txt', 'a') as f:
