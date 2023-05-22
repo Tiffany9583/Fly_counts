@@ -15,7 +15,6 @@ from models.experimental import attempt_load
 from utils.datasets import LoadStreams, LoadImages
 from utils.general import xyxy2xywh, xywh2xyxy, \
     strip_optimizer, set_logging, increment_path, scale_coords
-from utils.plots import plot_one_box, plot_counts_text, plot_path_line
 from utils.torch_utils import select_device, time_synchronized
 from utils.roboflow import predict_image
 
@@ -30,18 +29,11 @@ from utils.yolov4 import Yolov4Engine
 from utils.yolov7 import Yolov7Engine
 
 
-from utils.general_fly import get_color_for, fly_not_in_diet, flyin
 classes = []
 names = []
 
 
-# {track.track_id:[(Center_x,Center_y),(Center_x2,Center_y2)...]}
-fly_coordi = {}
-
-
-def update_tracks(tracker, frame_count, save_txt, txt_path, save_dir,  save_img, view_img, im0, gn,
-                  fly_counts, thickness, show_path, info):
-    diet__center = []  # [(Center_x,Center_y,radius)]
+def update_tracks(tracker, frame_count, save_txt, txt_path, save_img, view_img, im0, thickness, info):
 
     if len(tracker.tracks):
         print("[Tracks]", len(tracker.tracks))
@@ -58,59 +50,6 @@ def update_tracks(tracker, frame_count, save_txt, txt_path, save_dir,  save_img,
         # print(str(class_name),"bbox =", xyxy)
         Center_x = bbox[0]+(bbox[2]-bbox[0])*0.5
         Center_y = bbox[1]+(bbox[3]-bbox[1])*0.5
-        fly_radius = ((bbox[2]-bbox[0])*0.5 + (bbox[3]-bbox[1])*0.5)*0.5
-
-        if str(class_name) == "Diet":
-            radius = (bbox[2]-bbox[0])*0.5
-            diet__center.append((Center_x, Center_y, radius))
-
-        if str(class_name) == "Fly":
-            # diet__center = [(coordi_x,coordi_y,radius)]
-
-            # ======== calculate fly_counts ========
-            if len(fly_counts) < len(diet__center):
-                for i in range(len(diet__center)-len(fly_counts)):
-                    fly_counts.append(0)  # initialize fly_counts
-
-            for i in range(len(diet__center)):
-                diet_coordi = diet__center[i]
-
-                # if flyin
-                if flyin((Center_x, Center_y), (diet_coordi[0], diet_coordi[1]), diet_coordi[2], fly_radius) == True:
-                    # fly_coordi= {} # {track.track_id:[(Center_x,Center_y),(Center_x2,Center_y2)...]}
-                    # print("flyin")
-                    if len(fly_coordi) > 0:
-
-                        if fly_not_in_diet((Center_x, Center_y), fly_coordi) == True:
-                            # print("flyin and  add")
-                            fly_counts[i] += 1
-
-                        else:
-                            # print("pass")
-                            pass
-                    else:
-                        # print("flyin and  add")
-                        fly_counts[i] += 1
-
-             # ======== update fly coordinate for print fly path line========
-             # put fly coordinate into fly_coordi
-            Center_x, Center_y = int(Center_x), int(Center_y)
-            if fly_coordi.get(track.track_id) == None:
-                fly_coordi[track.track_id] = []
-                fly_coordi[track.track_id] += [(Center_x, Center_y)]
-            else:
-                if (Center_x, Center_y) == fly_coordi[track.track_id][-1]:
-                    pass
-                else:
-                    fly_coordi[track.track_id] += [(Center_x, Center_y)]
-
-            if show_path:
-                label = f'{class_name} #{track.track_id}'
-
-                if fly_coordi.get(track.track_id):
-                    fly_coordi_list = fly_coordi[track.track_id]
-                    plot_path_line(fly_coordi_list, im0, color=get_color_for(
-                        label), line_thickness=thickness)
 
         if info:
             print("Tracker ID: {}, Class: {}, BBox Coords (xmin, ymin, xmax, ymax): {}".format(
@@ -128,16 +67,6 @@ def update_tracks(tracker, frame_count, save_txt, txt_path, save_dir,  save_img,
             label = f'{class_name} #{track.track_id}'
             plot_one_box(xyxy, im0, label=label,
                          color=get_color_for(label), line_thickness=thickness)
-    if save_txt:
-        with open(save_dir / 'fly_counts.txt', 'a') as f:
-            f.write("frame: {}; fly_counts:{}\n".format(
-                frame_count, fly_counts))
-
-    plot_counts_text(im0, fly_numbers=fly_counts, line_thickness=thickness)
-
-    fly_coordi.update(fly_coordi)
-
-    return fly_counts
 
 
 def detect(save_img=False):
@@ -182,7 +111,7 @@ def detect(save_img=False):
     fly_counts = []
 
     source, weights, view_img, save_txt, imgsz = opt.source, opt.weights, opt.view_img, opt.save_txt, opt.img_size,
-    show_path, thickness, info = opt.show_path, opt.thickness, opt.info
+    thickness, info = opt.thickness, opt.info
 
     webcam = source.isnumeric() or source.endswith('.txt') or source.lower().startswith(
         ('rtsp://', 'rtmp://', 'http://'))
@@ -335,9 +264,8 @@ def detect(save_img=False):
                 tracker.update(detections)
 
                 # update tracks
-                fly_counts = update_tracks(tracker, frame_count, save_txt,
-                                           txt_path, save_dir, save_img, view_img, im0, gn, fly_counts,
-                                           thickness, show_path, info)
+                update_tracks(tracker, frame_count, save_txt,
+                              txt_path, save_img, view_img, im0, thickness, info)
 
             # Print time (inference + NMS)
             print(f'Done. ({t2 - t1:.3f}s)')
@@ -373,9 +301,6 @@ def detect(save_img=False):
         s = f"\n{len(list(save_dir.glob('labels/*.txt')))} labels saved to {save_dir / 'labels'}" if save_txt else ''
         print(f"Results saved to {save_dir}{s}")
 
-    with open(save_dir / 'fly_counts.txt', 'a') as f:
-        f.write("last fly_counts:{}\n".format(fly_counts))
-
     print(f'Done. ({time.time() - t0:.3f}s)')
 
 
@@ -404,9 +329,6 @@ if __name__ == '__main__':
                         help='display results')
     parser.add_argument('--save-txt', action='store_true',
                         help='save results to *.txt')
-    # function for fly project
-    parser.add_argument('--show-path', action='store_true',
-                        help='show path on video')
     parser.add_argument('--save-conf', action='store_true',
                         help='save confidences in --save-txt labels')
     parser.add_argument('--classes', nargs='+', type=int,
