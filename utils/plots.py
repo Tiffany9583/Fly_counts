@@ -84,7 +84,7 @@ def plot_counts_text(img, fly_numbers=None, line_thickness=None):
         if i == int(len(fly_numbers)-1):
             f1 = "Diet" + str(i+1) + ":" + str(fly_numbers[i])
         else:
-            f1 = "Diet" + str(i+1) + ":" + str(fly_numbers[i]) + ";"
+            f1 = "Diet" + str(i+1) + ":" + str(fly_numbers[i]) + "; "
         f += f1
 
     cv2.putText(img, f, org, 0, tl / 3, color,

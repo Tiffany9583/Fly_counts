@@ -15,7 +15,7 @@ from models.experimental import attempt_load
 from utils.datasets import LoadStreams, LoadImages
 from utils.general import xyxy2xywh, xywh2xyxy, \
     strip_optimizer, set_logging, increment_path, scale_coords
-from utils.plots import plot_one_box, plot_fly_coordi_matrix, plot_counts_text, plot_path_line
+from utils.plots import plot_one_box, plot_counts_text, plot_path_line
 from utils.torch_utils import select_device, time_synchronized
 from utils.roboflow import predict_image
 
@@ -40,7 +40,7 @@ fly_coordi = {}
 
 
 def update_tracks(tracker, frame_count, save_txt, txt_path, save_dir,  save_img, view_img, im0, gn,
-                  fly_counts, fly_coordi_matrix, thickness, show_path, info, cal_matrix):
+                  fly_counts, thickness, show_path, info):
     diet__center = []  # [(Center_x,Center_y,radius)]
 
     if len(tracker.tracks):
@@ -67,17 +67,6 @@ def update_tracks(tracker, frame_count, save_txt, txt_path, save_dir,  save_img,
         if str(class_name) == "Fly":
             # diet__center = [(coordi_x,coordi_y,radius)]
 
-            # ======== calculate fly_coordi_matrix ========
-            if cal_matrix:
-                im0_shape = (im0.shape[1], im0.shape[0])
-
-                if fly_coordi_matrix.shape != im0_shape:
-                    # Initialize fly_coordi_matrix
-                    fly_coordi_matrix = np.zeros(im0_shape)
-                else:
-                    # add fly coordi into fly_coordi_matrix
-                    fly_coordi_matrix[int(Center_x)-1][int(Center_y)-1] += 1
-
             # ======== calculate fly_counts ========
             if len(fly_counts) < len(diet__center):
                 for i in range(len(diet__center)-len(fly_counts)):
@@ -103,15 +92,19 @@ def update_tracks(tracker, frame_count, save_txt, txt_path, save_dir,  save_img,
                         # print("flyin and  add")
                         fly_counts[i] += 1
 
-            if show_path:
              # ======== update fly coordinate for print fly path line========
              # put fly coordinate into fly_coordi
-                if fly_coordi.get(track.track_id) == None:
-                    fly_coordi[track.track_id] = []
-                    fly_coordi[track.track_id] += [(Center_x, Center_y)]
+            Center_x, Center_y = int(Center_x), int(Center_y)
+            if fly_coordi.get(track.track_id) == None:
+                fly_coordi[track.track_id] = []
+                fly_coordi[track.track_id] += [(Center_x, Center_y)]
+            else:
+                if (Center_x, Center_y) == fly_coordi[track.track_id][-1]:
+                    pass
                 else:
                     fly_coordi[track.track_id] += [(Center_x, Center_y)]
 
+            if show_path:
                 label = f'{class_name} #{track.track_id}'
 
                 if fly_coordi.get(track.track_id):
@@ -144,7 +137,7 @@ def update_tracks(tracker, frame_count, save_txt, txt_path, save_dir,  save_img,
 
     fly_coordi.update(fly_coordi)
 
-    return fly_counts, fly_coordi_matrix
+    return fly_counts
 
 
 def detect(save_img=False):
@@ -185,13 +178,11 @@ def detect(save_img=False):
     # initialize tracker
     tracker = Tracker(metric)
 
-    # initialize fly_counts and fly_coordi_matrix
+    # initialize fly_counts
     fly_counts = []
-    global fly_coordi_matrix
-    fly_coordi_matrix = np.array([])
 
     source, weights, view_img, save_txt, imgsz = opt.source, opt.weights, opt.view_img, opt.save_txt, opt.img_size,
-    show_path, cal_matrix, thickness, info = opt.show_path, opt.cal_matrix, opt.thickness, opt.info
+    show_path, thickness, info = opt.show_path, opt.thickness, opt.info
 
     webcam = source.isnumeric() or source.endswith('.txt') or source.lower().startswith(
         ('rtsp://', 'rtmp://', 'http://'))
@@ -344,10 +335,9 @@ def detect(save_img=False):
                 tracker.update(detections)
 
                 # update tracks
-                fly_counts, fly_coordi_matrix_new = update_tracks(tracker, frame_count, save_txt,
-                                                                  txt_path, save_dir, save_img, view_img, im0, gn, fly_counts, fly_coordi_matrix,
-                                                                  thickness, show_path, info, cal_matrix)
-                fly_coordi_matrix = fly_coordi_matrix_new
+                fly_counts = update_tracks(tracker, frame_count, save_txt,
+                                           txt_path, save_dir, save_img, view_img, im0, gn, fly_counts,
+                                           thickness, show_path, info)
 
             # Print time (inference + NMS)
             print(f'Done. ({t2 - t1:.3f}s)')
@@ -383,14 +373,6 @@ def detect(save_img=False):
         s = f"\n{len(list(save_dir.glob('labels/*.txt')))} labels saved to {save_dir / 'labels'}" if save_txt else ''
         print(f"Results saved to {save_dir}{s}")
 
-    if cal_matrix:
-        with open(save_dir / 'coordi_matrix.txt', 'a') as f:
-            # for line in fly_coordi_matrix:
-            np.savetxt(f, fly_coordi_matrix, fmt='%.2f')
-        plot_fly_coordi_matrix(
-            fly_coordi_matrix, source, save_dir=save_dir, first_img='')
-        print(f"Coordinate matrix figure and txt file saved to {save_dir}")
-
     with open(save_dir / 'fly_counts.txt', 'a') as f:
         f.write("last fly_counts:{}\n".format(fly_counts))
 
@@ -425,9 +407,6 @@ if __name__ == '__main__':
     # function for fly project
     parser.add_argument('--show-path', action='store_true',
                         help='show path on video')
-    parser.add_argument('--cal-matrix', action='store_true',
-                        help='Calculate fly position matrix and generate heatmap.')
-
     parser.add_argument('--save-conf', action='store_true',
                         help='save confidences in --save-txt labels')
     parser.add_argument('--classes', nargs='+', type=int,
