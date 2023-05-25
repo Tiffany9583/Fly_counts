@@ -153,7 +153,7 @@ def Read_vedio(show_path, show_counts, source, coordi_data, source_folder, thick
 
                 elif str(data["class"][i]) == "Fly":
                     Center = [float(i) for i in s]
-                    print("A", Center)
+                    
                     if show_counts:
                         xymin = data["BBox X (xmin, ymin)"][i][1:-1]
                         s1 = xymin.split(",")
@@ -169,21 +169,20 @@ def Read_vedio(show_path, show_counts, source, coordi_data, source_folder, thick
                     if fly_coordi_short.get(track_id) == None:
                         fly_coordi_short[track_id] = []
                         fly_coordi_short[track_id] += [tuple(Center)]
-                        print("C")
+                        
                     else:
                         if tuple(Center) == fly_coordi_short[track_id][-1]:
-                            print("C1")
-                            continue
+                            pass
                         else:
                             fly_coordi_short[track_id] += [tuple(Center)]
-                            print("C2")
+                            
                     if show_path:
                         label = f'{class_name} #{track_id}'
                         if fly_coordi_short.get(track_id):
                             fly_coordi_list = fly_coordi_short[track_id]
                             plot_path_line(fly_coordi_list, frame, color=get_color_for(
                                 label), line_thickness=thickness)
-                            print("D")
+                            
 
         except:
             pass

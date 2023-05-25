@@ -17,6 +17,7 @@ from utils.general import xyxy2xywh, xywh2xyxy, \
     strip_optimizer, set_logging, increment_path, scale_coords
 from utils.torch_utils import select_device, time_synchronized
 from utils.roboflow import predict_image
+from utils.plots import plot_one_box
 
 # deep sort imports
 from deep_sort import preprocessing, nn_matching
@@ -28,6 +29,7 @@ from utils.yolov5 import Yolov5Engine
 from utils.yolov4 import Yolov4Engine
 from utils.yolov7 import Yolov7Engine
 
+from utils.general_fly import get_color_for
 
 classes = []
 names = []
@@ -106,9 +108,6 @@ def detect(save_img=False):
 
     # initialize tracker
     tracker = Tracker(metric)
-
-    # initialize fly_counts
-    fly_counts = []
 
     source, weights, view_img, save_txt, imgsz = opt.source, opt.weights, opt.view_img, opt.save_txt, opt.img_size,
     thickness, info = opt.thickness, opt.info
