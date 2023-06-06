@@ -31,6 +31,7 @@ from utils.yolov7 import Yolov7Engine
 
 from utils.general_fly import get_color_for
 
+
 classes = []
 names = []
 
@@ -175,6 +176,7 @@ def detect(save_img=False):
         t2 = time_synchronized()
         # Process detections
         for i, det in enumerate(pred):  # detections per image
+            # t4 = time_synchronized()
             # moved up to roboflow inference
             """if webcam:  # batch_size >= 1
                 p, s, im0, frame = path[i], '%g: ' % i, im0s[i].copy(
@@ -189,9 +191,10 @@ def detect(save_img=False):
 
             # normalization gain whwh
             gn = torch.tensor(im0.shape)[[1, 0, 1, 0]]
+
             if len(det):
 
-                print("\n[Detections]")
+                # print("\n[Detections]")
                 if opt.detection_engine == "roboflow":
                     # Print results
                     clss = np.array(classes)
@@ -232,7 +235,7 @@ def detect(save_img=False):
                         img.shape[2:], det[:, :4], im0.shape).round()
                     for c in det[:, -1].unique():
                         n = (det[:, -1] == c).sum()  # detections per class
-                        s += f'{n} {names[int(c)]}s, '  # add to string
+                        # s += f'{n} {names[int(c)]}s, '  # add to string
 
                     # Transform bboxes from tlbr to tlwh
                     trans_bboxes = det[:, :4].clone()
@@ -242,7 +245,7 @@ def detect(save_img=False):
                     class_nums = det[:, -1].cpu()
                     classes = class_nums
 
-                    print(s)
+                    # print(s)
 
                 # encode yolo detections and feed to tracker
                 features = encoder(im0, bboxes)
@@ -265,9 +268,6 @@ def detect(save_img=False):
                 # update tracks
                 update_tracks(tracker, frame_count, save_txt,
                               txt_path, save_img, view_img, im0, thickness, info)
-
-            # Print time (inference + NMS)
-            print(f'Done. ({t2 - t1:.3f}s)')
 
             # Stream results
             if view_img:
@@ -293,7 +293,10 @@ def detect(save_img=False):
                             save_path, cv2.VideoWriter_fourcc(*fourcc), fps, (w, h))
                     vid_writer.write(im0)
 
-            frame_count = frame_count+1
+            frame_count = frame_count + 1
+            time.sleep(0)
+            # t5 = time_synchronized()
+            # print(f'Done. ({t5 - t4:.3f}s)')
 
     if save_txt or save_img:
 
@@ -362,6 +365,7 @@ if __name__ == '__main__':
     print(opt)
 
     with torch.no_grad():
+
         if opt.update:  # update all models (to fix SourceChangeWarning)
             for opt.weights in ['yolov5s.pt', 'yolov5m.pt', 'yolov5l.pt', 'yolov5x.pt']:
                 detect()

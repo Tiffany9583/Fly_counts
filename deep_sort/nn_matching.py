@@ -1,5 +1,6 @@
 # vim: expandtab:ts=4:sw=4
 import numpy as np
+from utils.torch_utils import time_synchronized
 
 
 def _pdist(a, b):
@@ -48,9 +49,15 @@ def _cosine_distance(a, b, data_is_normalized=False):
         contains the squared distance between `a[i]` and `b[j]`.
 
     """
+    # t4 = time_synchronized()
+    # print(len(a))
     if not data_is_normalized:
         a = np.asarray(a) / np.linalg.norm(a, axis=1, keepdims=True)
         b = np.asarray(b) / np.linalg.norm(b, axis=1, keepdims=True)
+    # t5 = time_synchronized()
+    # print(a.shape)
+    # print(f'Done. ({t5 - t4:.3f}s)')
+
     return 1. - np.dot(a, b.T)
 
 
@@ -92,6 +99,7 @@ def _nn_cosine_distance(x, y):
         smallest cosine distance to a sample in `x`.
 
     """
+
     distances = _cosine_distance(x, y)
     return distances.min(axis=0)
 
@@ -122,7 +130,6 @@ class NearestNeighborDistanceMetric(object):
 
     def __init__(self, metric, matching_threshold, budget=None):
 
-
         if metric == "euclidean":
             self._metric = _nn_euclidean_distance
         elif metric == "cosine":
@@ -148,7 +155,13 @@ class NearestNeighborDistanceMetric(object):
 
         """
         for feature, target in zip(features, targets):
+            # tem = {}
+            # tem.setdefault(target, []).append(feature)
+            # self.samples.update(tem)
             self.samples.setdefault(target, []).append(feature)
+            if self.samples[target] >= 16:
+                self.samples[target].pop(0)
+
             if self.budget is not None:
                 self.samples[target] = self.samples[target][-self.budget:]
         self.samples = {k: self.samples[k] for k in active_targets}
@@ -171,6 +184,7 @@ class NearestNeighborDistanceMetric(object):
             `targets[i]` and `features[j]`.
 
         """
+
         cost_matrix = np.zeros((len(targets), len(features)))
         for i, target in enumerate(targets):
             cost_matrix[i, :] = self._metric(self.samples[target], features)
